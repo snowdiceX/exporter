@@ -12,68 +12,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// nolint
-const (
-	KeyPrefix       = "cassini_"
-	KeyQueueSize    = "queue_size"
-	KeyQueue        = "queue"
-	KeyAdaptors     = "adaptors"
-	KeyTxMax        = "tx_max"
-	KeyTxsWait      = "txs_wait"
-	KeyTxCost       = "tx_cost"
-	KeyTxsPerSecond = "txs_per_second"
-	KeyErrors       = "errors"
-)
-
 var collector *cassiniCollector
 
-func init() {
-
-	initConfig()
-
-	initCollector()
-
-	// Set(KeyQueueSize, 0,"local")
-	Set(KeyQueue, 0)
-	// Set(KeyAdaptors, 0, "?")
-	Set(KeyTxMax, 0, "send", "qos")
-	Set(KeyTxMax, 0, "receive", "qos")
-	Set(KeyTxsWait, 0)
-	Set(KeyTxCost, 0)
-	Set(KeyTxsPerSecond, 0)
-	Set(KeyErrors, 0)
-
-	// go func() {
-	// 	t := time.NewTicker(time.Duration(100) * time.Millisecond)
-	// 	for {
-	// 		select {
-	// 		case <-t.C:
-	// 			{
-	// 				Set(KeyTxsPerSecond, 123)
-	// 			}
-	// 		}
-	// 	}
-	// }()
-}
-
-func initConfig() {
-	initMcs := []*MetricConfig{
-		&MetricConfig{
-			Key:  KeyQueueSize,
-			Type: "ImmutableGaugeMetric"},
-		&MetricConfig{
-			Key:  KeyErrors,
-			Type: "CounterMetric"},
-		&MetricConfig{
-			Key:  KeyTxMax,
-			Type: "TxMaxGaugeMetric"},
-		&MetricConfig{
-			Key:  KeyTxsPerSecond,
-			Type: "TickerGaugeMetric"}}
-	viper.Set(KeyMetricType, initMcs)
-}
-
 func initCollector() {
+	keyPrefix := viper.GetString(KeyMetricPrefix)
 	var mcs []*MetricConfig
 	viper.UnmarshalKey(KeyMetricType, &mcs)
 
@@ -81,40 +23,12 @@ func initCollector() {
 		metricConfigs: mcs,
 		descs:         make(map[string]*prometheus.Desc)}
 
-	collector.descs[KeyQueueSize] = prometheus.NewDesc(
-		fmt.Sprint(KeyPrefix, KeyQueueSize),
-		"Size of queue",
-		[]string{"type"}, nil)
-	collector.descs[KeyQueue] = prometheus.NewDesc(
-		fmt.Sprint(KeyPrefix, KeyQueue),
-		"Current size of tx in queue",
-		nil, nil)
-	collector.descs[KeyTxMax] = prometheus.NewDesc(
-		fmt.Sprint(KeyPrefix, KeyTxMax),
-		"Max value of transfer txs per minute",
-		[]string{"transfer", "token"}, nil)
-
-	collector.descs[KeyTxsPerSecond] = prometheus.NewDesc(
-		fmt.Sprint(KeyPrefix, KeyTxsPerSecond),
-		"Number of relayed tx per second",
-		nil, nil)
-	collector.descs[KeyTxsWait] = prometheus.NewDesc(
-		fmt.Sprint(KeyPrefix, KeyTxsWait),
-		"Number of tx waiting to be relayed",
-		nil, nil)
-	collector.descs[KeyTxCost] = prometheus.NewDesc(
-		fmt.Sprint(KeyPrefix, KeyTxCost),
-		"Time(milliseconds) cost of lastest tx relay",
-		nil, nil)
-	collector.descs[KeyAdaptors] = prometheus.NewDesc(
-		fmt.Sprint(KeyPrefix, KeyAdaptors),
-		"Number of available adaptors",
-		[]string{"node"}, nil)
-	// []string{"from", "to"}, nil)
-	collector.descs[KeyErrors] = prometheus.NewDesc(
-		fmt.Sprint(KeyPrefix, KeyErrors),
-		"Count of running errors",
-		nil, nil)
+	for _, metric := range mcs {
+		collector.descs[metric.Key] = prometheus.NewDesc(
+			fmt.Sprint(keyPrefix, metric.Key),
+			metric.Help,
+			metric.Labels, nil)
+	}
 }
 
 // Collector returns a collector
@@ -262,8 +176,13 @@ func buildMapperKey(key string, labels []string) string {
 // StartMetrics prometheus exporter("/metrics") service
 func StartMetrics(errChannel chan<- error) {
 
+	initCollector()
+
 	prometheus.MustRegister(Collector(errChannel))
 
-	http.Handle("/metrics", promhttp.Handler())
-	errChannel <- http.ListenAndServe(":39099", nil)
+	addr := viper.GetString(KeyMetricAddr)
+	path := viper.GetString(KeyMetricPath)
+
+	http.Handle(path, promhttp.Handler())
+	errChannel <- http.ListenAndServe(addr, nil)
 }
