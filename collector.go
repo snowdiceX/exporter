@@ -148,6 +148,8 @@ func (c *cassiniCollector) createMetric(key string) (metric ExportMetric) {
 			metric = &TxMaxGaugeMetric{}
 		} else if strings.EqualFold(mc.Type, "TickerGaugeMetric") {
 			metric = &TickerGaugeMetric{}
+		} else if strings.EqualFold(mc.Type, "GaugeMetric") {
+			metric = &GaugeMetric{}
 		}
 	} else {
 		metric = &GaugeMetric{}
