@@ -176,7 +176,7 @@ func (m *GaugeMetric) SetValue(v float64) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
-	m.value += v
+	m.value = v
 }
 
 // GetValueType returns value type
