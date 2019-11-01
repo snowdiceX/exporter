@@ -199,6 +199,14 @@ func (m *GaugeMetric) SetLabelValues(values []string) {
 
 // IsContained determines whether the labels are contained
 func (m *GaugeMetric) IsContained(labels []string) bool {
+	if len(m.labelValues) != len(labels) {
+		return false
+	}
+	for i, v := range labels {
+		if !strings.EqualFold(v, m.labelValues[i]) {
+			return false
+		}
+	}
 	return true
 }
 

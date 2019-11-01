@@ -16,6 +16,7 @@ var collector *cassiniCollector
 
 func initCollector() {
 	keyPrefix := viper.GetString(KeyMetricPrefix)
+	fmt.Println("key prefix: ", keyPrefix)
 	var mcs []*MetricConfig
 	viper.UnmarshalKey(KeyMetricType, &mcs)
 
@@ -24,8 +25,10 @@ func initCollector() {
 		descs:         make(map[string]*prometheus.Desc)}
 
 	for _, metric := range mcs {
+		key := fmt.Sprint(keyPrefix, metric.Key)
+		fmt.Println("key: ", key)
 		collector.descs[metric.Key] = prometheus.NewDesc(
-			fmt.Sprint(keyPrefix, metric.Key),
+			key,
 			metric.Help,
 			metric.Labels, nil)
 	}
@@ -78,6 +81,7 @@ func (c *cassiniCollector) Collect(ch chan<- prometheus.Metric) {
 			// }
 		} else {
 			c.export(ch, metric)
+			fmt.Println("Collect: ", key)
 		}
 		return true
 	}
@@ -180,11 +184,13 @@ func StartMetrics(errChannel chan<- error) {
 
 	initCollector()
 
-	prometheus.MustRegister(Collector(errChannel))
+	go func() {
+		prometheus.MustRegister(Collector(errChannel))
 
-	addr := viper.GetString(KeyMetricAddr)
-	path := viper.GetString(KeyMetricPath)
+		addr := viper.GetString(KeyMetricAddr)
+		path := viper.GetString(KeyMetricPath)
 
-	http.Handle(path, promhttp.Handler())
-	errChannel <- http.ListenAndServe(addr, nil)
+		http.Handle(path, promhttp.Handler())
+		errChannel <- http.ListenAndServe(addr, nil)
+	}()
 }
