@@ -92,7 +92,7 @@ func initCollector() {
 	collector.descs[KeyTxMax] = prometheus.NewDesc(
 		fmt.Sprint(KeyPrefix, KeyTxMax),
 		"Max value of transfer txs per minute",
-		[]string{"transfer", "token"}, nil)
+		[]string{"transfer", "token", "txhash"}, nil)
 
 	collector.descs[KeyTxsPerSecond] = prometheus.NewDesc(
 		fmt.Sprint(KeyPrefix, KeyTxsPerSecond),
