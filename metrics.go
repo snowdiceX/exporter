@@ -347,7 +347,7 @@ func (m *TxMaxGaugeMetric) Init() {
 			select {
 			case <-m.cancel:
 				{
-					break
+					return
 				}
 			case <-t.C:
 				{
