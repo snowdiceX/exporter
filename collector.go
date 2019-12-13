@@ -24,6 +24,7 @@ func initCollector() {
 	collector = &cassiniCollector{
 		metricConfigs: mcs,
 		descs:         make(map[string]*prometheus.Desc)}
+	collector.Init()
 
 	for _, metric := range mcs {
 		key := fmt.Sprint(keyPrefix, metric.Key)
