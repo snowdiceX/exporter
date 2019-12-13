@@ -22,6 +22,7 @@ type ExportMetric interface {
 	SetLabelValues([]string)
 	IsContained([]string) bool
 	IsTimeout() bool
+	Cancel()
 }
 
 // ImmutableGaugeMetric stores an immutable value
@@ -82,6 +83,10 @@ func (m *ImmutableGaugeMetric) IsContained(labels []string) bool {
 // IsTimeout determines whether the metric gauge is timeout
 func (m *ImmutableGaugeMetric) IsTimeout() bool {
 	return false
+}
+
+// Cancel close the metric gauge
+func (m *ImmutableGaugeMetric) Cancel() {
 }
 
 // CounterMetric stores a counter value
@@ -149,6 +154,10 @@ func (m *CounterMetric) IsContained(labels []string) bool {
 // IsTimeout determines whether the metric gauge is timeout
 func (m *CounterMetric) IsTimeout() bool {
 	return false
+}
+
+// Cancel close the metric gauge
+func (m *CounterMetric) Cancel() {
 }
 
 // GaugeMetric wraps prometheus export data
@@ -224,6 +233,10 @@ func (m *GaugeMetric) IsContained(labels []string) bool {
 // IsTimeout determines whether the metric gauge is timeout
 func (m *GaugeMetric) IsTimeout() bool {
 	return false
+}
+
+// Cancel close the metric gauge
+func (m *GaugeMetric) Cancel() {
 }
 
 // TickerGaugeMetric wraps prometheus export data with ticker job
@@ -310,6 +323,10 @@ func (m *TickerGaugeMetric) IsTimeout() bool {
 	return false
 }
 
+// Cancel close the metric gauge
+func (m *TickerGaugeMetric) Cancel() {
+}
+
 // TxMaxGaugeMetric wraps prometheus export data with ticker job
 type TxMaxGaugeMetric struct {
 	key         string
@@ -318,15 +335,20 @@ type TxMaxGaugeMetric struct {
 	labelValues []string
 	mux         sync.RWMutex
 	updateTime  time.Time
+	cancel      chan int32
 }
 
 // Init starts ticker goroutine
 func (m *TxMaxGaugeMetric) Init() {
 	t := time.NewTicker(time.Duration(60) * time.Second)
-
+	m.cancel = make(chan int32, 1)
 	go func() {
 		for {
 			select {
+			case <-m.cancel:
+				{
+					break
+				}
 			case <-t.C:
 				{
 					m.ResetValue()
@@ -420,4 +442,9 @@ func (m *TxMaxGaugeMetric) IsTimeout() bool {
 		}
 	}
 	return false
+}
+
+// Cancel close the metric gauge
+func (m *TxMaxGaugeMetric) Cancel() {
+	m.cancel <- 1
 }

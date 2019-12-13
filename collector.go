@@ -62,6 +62,7 @@ func (c *cassiniCollector) Init() {
 						m, ok := v.(ExportMetric)
 						if ok {
 							if m.IsTimeout() {
+								m.Cancel()
 								c.mapper.Delete(k)
 							}
 						} else {
