@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/spf13/viper"
 
@@ -46,6 +47,32 @@ type cassiniCollector struct {
 	descs         map[string]*prometheus.Desc
 	mapper        sync.Map
 	errChannel    chan<- error
+}
+
+func (c *cassiniCollector) Init() {
+	t := time.NewTicker(time.Duration(60) * time.Second)
+
+	go func() {
+		for {
+			select {
+			case <-t.C:
+				{
+					c.mapper.Range(func(k interface{}, v interface{}) bool {
+						m, ok := v.(ExportMetric)
+						if ok {
+							if m.IsTimeout() {
+								c.mapper.Delete(k)
+							}
+						} else {
+							c.errChannel <- fmt.Errorf(
+								"Collect type assertion error: %s)", k)
+						}
+						return false
+					})
+				}
+			}
+		}
+	}()
 }
 
 // Describe returns all descriptions of the collector.

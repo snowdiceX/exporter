@@ -21,6 +21,7 @@ type ExportMetric interface {
 	GetLabelValues() []string
 	SetLabelValues([]string)
 	IsContained([]string) bool
+	IsTimeout() bool
 }
 
 // ImmutableGaugeMetric stores an immutable value
@@ -76,6 +77,11 @@ func (m *ImmutableGaugeMetric) SetLabelValues(values []string) {
 // IsContained determines whether the labels are contained
 func (m *ImmutableGaugeMetric) IsContained(labels []string) bool {
 	return true
+}
+
+// IsTimeout determines whether the metric gauge is timeout
+func (m *ImmutableGaugeMetric) IsTimeout() bool {
+	return false
 }
 
 // CounterMetric stores a counter value
@@ -138,6 +144,11 @@ func (m *CounterMetric) SetLabelValues(values []string) {
 // IsContained determines whether the labels are contained
 func (m *CounterMetric) IsContained(labels []string) bool {
 	return true
+}
+
+// IsTimeout determines whether the metric gauge is timeout
+func (m *CounterMetric) IsTimeout() bool {
+	return false
 }
 
 // GaugeMetric wraps prometheus export data
@@ -208,6 +219,11 @@ func (m *GaugeMetric) IsContained(labels []string) bool {
 		}
 	}
 	return true
+}
+
+// IsTimeout determines whether the metric gauge is timeout
+func (m *GaugeMetric) IsTimeout() bool {
+	return false
 }
 
 // TickerGaugeMetric wraps prometheus export data with ticker job
@@ -289,6 +305,11 @@ func (m *TickerGaugeMetric) IsContained(labels []string) bool {
 	return true
 }
 
+// IsTimeout determines whether the metric gauge is timeout
+func (m *TickerGaugeMetric) IsTimeout() bool {
+	return false
+}
+
 // TxMaxGaugeMetric wraps prometheus export data with ticker job
 type TxMaxGaugeMetric struct {
 	key         string
@@ -296,6 +317,7 @@ type TxMaxGaugeMetric struct {
 	value       float64
 	labelValues []string
 	mux         sync.RWMutex
+	updateTime  time.Time
 }
 
 // Init starts ticker goroutine
@@ -351,6 +373,7 @@ func (m *TxMaxGaugeMetric) SetValue(v float64) {
 	if m.max < v {
 		m.max = v
 	}
+	m.updateTime = time.Now()
 	fmt.Println("ticker max: ", m.key, "; ",
 		m.value, "; ", m.max, "; ", v)
 }
@@ -384,4 +407,17 @@ func (m *TxMaxGaugeMetric) IsContained(labels []string) bool {
 		}
 	}
 	return true
+}
+
+// IsTimeout determines whether the metric gauge is timeout
+func (m *TxMaxGaugeMetric) IsTimeout() bool {
+	duration := time.Now().Sub(m.updateTime)
+	if duration > time.Duration(10)*time.Second {
+		m.mux.Lock()
+		defer m.mux.Unlock()
+		if m.value == 0 && m.max == 0 {
+			return true
+		}
+	}
+	return false
 }
